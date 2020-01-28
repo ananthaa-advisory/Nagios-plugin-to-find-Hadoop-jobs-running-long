@@ -1,0 +1,43 @@
+#!/bin/bash
+#####################################################################################
+# Customized plugin to capture long running Hadoop jobs for Nagios/ICINGA/Zabbix
+# Here, Grepping the Hadoop Queue name - cyber
+# Exit 2 -  critical
+# Exit  0 - OK
+# VERSION - 01
+#####################################################################################
+yarn application -list | grep cyber  | awk '{print $1}' > /tmp/out.$$
+
+# Getting Epoch value in Milliseconds
+Today=`echo $(($(date +%s%N)/1000000))`
+
+
+# Printing the 2 days before time  in EPOCH
+# Milliseconds for a day - 86,400,000 Milliseconds * the number.of.days
+#two_days_epoch=$(( $(echo Today)-172800000))
+#six_hours=$(( $(echo Today)-3600000))
+six_hours=$(( $(echo Today)-21600000))
+
+
+# REading the file from #yarn application list command output file and greping the right field , refer the sample file below:
+for i in $(cat /tmp/out.$$)
+do
+spark_time=`yarn application -status $i | sed -n 7p | cut -d':' -f2`
+
+if [[ $six_hours -gt $spark_time ]]
+then
+echo $i >> /tmp/epoch_cyber.$$
+
+fi
+done
+
+
+if [[ -s /tmp/epoch_cyber.$$ ]]
+then
+echo "The below jobs are running for more than six hours\n"
+cat /tmp/epoch_cyber.$$
+exit 2
+else
+echo "No Jobs are running beyond than 6 hours in YARN-CYBER  Queue - All are good"
+exit 0
+fi
